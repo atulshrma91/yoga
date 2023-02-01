@@ -1,0 +1,9 @@
+{
+  "extends": "@connectfinancial/tsconfig",
+  "include": ["src/*.ts", "src/*.d.ts"],
+  "compilerOptions": {
+    "outDir": "dist",
+    "lib": ["esnext"],
+    "allowJs": true
+  }
+}

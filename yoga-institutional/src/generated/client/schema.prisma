@@ -1,0 +1,515 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SequelizeData {
+  name String @id @db.VarChar(255)
+}
+
+model SequelizeMeta {
+  name String @id @db.VarChar(255)
+}
+
+model assets {
+  id                                  Int                    @id @default(autoincrement())
+  name                                String                 @db.VarChar(255)
+  description                         String
+  baseNetworkId                       Int?
+  type                                enum_assets_type
+  ticker                              String                 @db.VarChar(255)
+  fireblocksTicker                    String?                @db.VarChar(255)
+  enabled                             Boolean                @default(false)
+  createdAt                           DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt                           DateTime               @default(now()) @db.Timestamptz(6)
+  baseNetworks                        baseNetworks?          @relation(fields: [baseNetworkId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  quotes_quotes_sourceAssetIdToassets quotes[]               @relation("quotes_sourceAssetIdToassets")
+  quotes_quotes_targetAssetIdToassets quotes[]               @relation("quotes_targetAssetIdToassets")
+  transactionPolicies                 transactionPolicies[]
+  transactions                        transactions[]
+  vaultAssets                         vaultAssets[]
+  vendorSupportsAssets                vendorSupportsAssets[]
+  withdrawalAddresses                 withdrawalAddresses[]
+}
+
+model baseNetworks {
+  id         Int      @id @default(autoincrement())
+  name       String   @db.VarChar(255)
+  addressUrl String   @db.VarChar(255)
+  feeAssetId Int?
+  txUrl      String   @db.VarChar(255)
+  enabled    Boolean
+  baseBps    Float
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @db.Timestamptz(6)
+  assets     assets[]
+}
+
+model quotes {
+  id                                  String           @id @db.Uuid
+  quoteStatusId                       Int
+  sourceAssetId                       Int
+  targetAssetId                       Int
+  side                                enum_quotes_side
+  userId                              String           @db.VarChar(255)
+  vendorId                            Int?
+  extraData                           Json?            @default("\"{}\"") @db.Json
+  error                               Json?            @default("\"{}\"") @db.Json
+  createdAt                           DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt                           DateTime         @default(now()) @db.Timestamptz(6)
+  fxRequestID                         String?          @db.Uuid
+  buyPrice                            String           @default(dbgenerated("0")) @db.VarChar(255)
+  sellPrice                           String           @default(dbgenerated("0")) @db.VarChar(255)
+  quantity                            String           @default(dbgenerated("0")) @db.VarChar(25)
+  orders                              orders[]
+  tokenPairsInfo                      tokenPairsInfo?  @relation(fields: [fxRequestID], references: [fxRequestID], onDelete: NoAction, onUpdate: NoAction)
+  quoteStatuses                       quoteStatuses    @relation(fields: [quoteStatusId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  assets_quotes_sourceAssetIdToassets assets           @relation("quotes_sourceAssetIdToassets", fields: [sourceAssetId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  assets_quotes_targetAssetIdToassets assets           @relation("quotes_targetAssetIdToassets", fields: [targetAssetId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendors                             vendors?         @relation(fields: [vendorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model transactionStatusTypes {
+  id           Int            @id @default(autoincrement())
+  name         String         @db.VarChar(255)
+  description  String
+  createdAt    DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime       @default(now()) @db.Timestamptz(6)
+  transactions transactions[]
+}
+
+model transactionTypes {
+  id                  Int                   @id @default(autoincrement())
+  name                String                @db.VarChar(255)
+  description         String
+  createdAt           DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime              @default(now()) @db.Timestamptz(6)
+  transactionPolicies transactionPolicies[]
+  transactions        transactions[]
+}
+
+model transactions {
+  id                                        String                 @id @db.Uuid
+  custodyVendorId                           Int
+  custodyVendorRef                          String                 @db.VarChar(255)
+  transactionTypeId                         Int
+  amountAsset                               String                 @db.VarChar(255)
+  amountUSD                                 String                 @db.VarChar(255)
+  assetId                                   Int
+  transactionStatusTypeId                   Int
+  onChainTxId                               String?                @db.VarChar(255)
+  sourceVaultId                             String?                @db.Uuid
+  targetVaultId                             String?                @db.Uuid
+  targetWithdrawalAddressId                 String?                @db.Uuid
+  sourceExternalAddress                     String?                @db.VarChar(255)
+  createdByUserId                           String?                @db.Uuid
+  subjectId                                 String                 @db.VarChar(255)
+  createdAt                                 DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt                                 DateTime               @default(now()) @db.Timestamptz(6)
+  assets                                    assets                 @relation(fields: [assetId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                                     users?                 @relation(fields: [createdByUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendors                                   vendors                @relation(fields: [custodyVendorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vaults_transactions_sourceVaultIdTovaults vaults?                @relation("transactions_sourceVaultIdTovaults", fields: [sourceVaultId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vaults_transactions_targetVaultIdTovaults vaults?                @relation("transactions_targetVaultIdTovaults", fields: [targetVaultId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  withdrawalAddresses                       withdrawalAddresses?   @relation(fields: [targetWithdrawalAddressId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transactionStatusTypes                    transactionStatusTypes @relation(fields: [transactionStatusTypeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transactionTypes                          transactionTypes       @relation(fields: [transactionTypeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model users {
+  id                  String                @id @db.Uuid
+  organizationId      Int
+  userTypeId          Int
+  primaryEmail        String                @db.VarChar(255)
+  firstName           String                @db.VarChar(255)
+  lastName            String?               @db.VarChar(255)
+  createdAt           DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime              @default(now()) @db.Timestamptz(6)
+  publicKey           String?
+  apiKey              String?               @db.VarChar(255)
+  transactionPolicies transactionPolicies[]
+  transactions        transactions[]
+  organizations       organizations         @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  userTypes           userTypes             @relation(fields: [userTypeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vaults              vaults[]
+}
+
+model vendorTypes {
+  id        Int       @id @default(autoincrement())
+  name      String    @db.VarChar(255)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @db.Timestamptz(6)
+  vendors   vendors[]
+}
+
+model vendors {
+  id                       Int                        @id @default(autoincrement())
+  name                     String                     @db.VarChar(255)
+  identifier               String                     @db.VarChar(255)
+  vendorTypeId             Int
+  quoteEngineBaseBps       Float
+  createdAt                DateTime                   @default(now()) @db.Timestamptz(6)
+  updatedAt                DateTime                   @default(now()) @db.Timestamptz(6)
+  custodyVendorVaultAssets custodyVendorVaultAssets[]
+  depositAddresses         depositAddresses[]
+  quotes                   quotes[]
+  tokenPairs               tokenPairs[]
+  transactions             transactions[]
+  vendorSupportsAssets     vendorSupportsAssets[]
+  vendorTypes              vendorTypes                @relation(fields: [vendorTypeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model custodyEngineEventTypes {
+  id                  Int                   @id @default(autoincrement())
+  name                String                @db.VarChar(255)
+  description         String
+  createdAt           DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime              @default(now()) @db.Timestamptz(6)
+  custodyEngineEvents custodyEngineEvents[]
+}
+
+model custodyEngineEvents {
+  id                       String                  @id @db.Uuid
+  organizationId           Int
+  custodyEngineEventTypeId Int
+  event                    Json                    @db.Json
+  createdAt                DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt                DateTime                @default(now()) @db.Timestamptz(6)
+  custodyEngineEventTypes  custodyEngineEventTypes @relation(fields: [custodyEngineEventTypeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations            organizations           @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  webhookRequests          webhookRequests[]
+}
+
+model custodyVendorVaultAssets {
+  id           Int         @id @default(autoincrement())
+  vendorId     Int
+  vendorRef    String      @db.VarChar(255)
+  balance      String      @db.VarChar(255)
+  vaultAssetId Int
+  createdAt    DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime    @default(now()) @db.Timestamptz(6)
+  vaultAssets  vaultAssets @relation(fields: [vaultAssetId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendors      vendors     @relation(fields: [vendorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model depositAddressStatusTypes {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(255)
+  description String
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model depositAddresses {
+  id                     String      @id @db.Uuid
+  vaultAssetId           Int
+  address                String      @db.VarChar(255)
+  depositAddressStatusId Int?
+  vendorId               Int?
+  vendorRef              String      @db.VarChar(255)
+  subjectId              String      @db.VarChar(255)
+  createdAt              DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime    @default(now()) @db.Timestamptz(6)
+  vaultAssets            vaultAssets @relation(fields: [vaultAssetId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendors                vendors?    @relation(fields: [vendorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model institutionalProducts {
+  id              String            @id @db.Uuid
+  name            String            @db.VarChar(255)
+  enabled         Boolean
+  createdAt       DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime          @default(now()) @db.Timestamptz(6)
+  webhookRequests webhookRequests[]
+}
+
+model orders {
+  id                      String                       @id @db.Uuid
+  quoteId                 String                       @db.Uuid
+  orderStatus             String?                      @db.VarChar(255)
+  userAcceptedPrice       String                       @db.VarChar(255)
+  userAcceptedQuantity    String                       @db.VarChar(255)
+  userAcceptedSide        enum_orders_userAcceptedSide
+  userAcceptedTradePair   Json                         @db.Json
+  userAcceptedTimestamp   DateTime                     @db.Timestamptz(6)
+  orderType               enum_orders_orderType?
+  orderTimeInForce        String?                      @db.VarChar(255)
+  vendorQuoteId           String?                      @db.VarChar(255)
+  vendorQuantityRequested String?                      @db.VarChar(255)
+  vendorPriceRequested    String?                      @db.VarChar(255)
+  orderQuantityExecuted   String?                      @db.VarChar(255)
+  orderPriceExecuted      String?                      @db.VarChar(255)
+  orderTimestampExecuted  DateTime?                    @db.Timestamptz(6)
+  orderVendorStatus       String?                      @db.VarChar(255)
+  allowedSlippage         String?                      @db.VarChar(255)
+  createdAt               DateTime                     @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime                     @default(now()) @db.Timestamptz(6)
+  quotes                  quotes                       @relation(fields: [quoteId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model organizationStatusTypes {
+  id            Int             @id @default(autoincrement())
+  name          String          @db.VarChar(255)
+  description   String
+  createdAt     DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime        @default(now()) @db.Timestamptz(6)
+  organizations organizations[]
+}
+
+model organizations {
+  id                      Int                     @id @default(autoincrement())
+  name                    String                  @db.VarChar(255)
+  primaryEmail            String                  @db.VarChar(255)
+  pricingPlanId           Int                     @default(1)
+  statusId                Int
+  createdAt               DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime                @default(now()) @db.Timestamptz(6)
+  custodyEngineEvents     custodyEngineEvents[]
+  pricingPlans            pricingPlans            @relation(fields: [pricingPlanId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizationStatusTypes organizationStatusTypes @relation(fields: [statusId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                   users[]
+  webhooks                webhooks[]
+  withdrawalAddresses     withdrawalAddresses[]
+}
+
+model pricingPlanProfiles {
+  id                Int            @id @default(autoincrement())
+  name              String         @db.VarChar(255)
+  quoteEngineRps    Int
+  custodyEngineRps  Int
+  numberOfUsers     Int
+  sla               Float
+  rbac              Boolean
+  quoteEngineClaims Json           @db.Json
+  createdAt         DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime       @default(now()) @db.Timestamptz(6)
+  pricingPlans      pricingPlans[]
+}
+
+model pricingPlanSupportsAssets {
+  id                    Int                  @id @default(autoincrement())
+  vendorSupportsAssetId Int
+  pricingPlanId         Int
+  enabled               Boolean              @default(true)
+  buyBps                Float
+  sellBps               Float
+  createdAt             DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime             @default(now()) @db.Timestamptz(6)
+  pricingPlans          pricingPlans         @relation(fields: [pricingPlanId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendorSupportsAssets  vendorSupportsAssets @relation(fields: [vendorSupportsAssetId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model pricingPlans {
+  id                        Int                         @id @default(autoincrement())
+  price                     Float
+  active                    Boolean                     @default(false)
+  pricingPlanProfileId      Int
+  createdAt                 DateTime                    @default(now()) @db.Timestamptz(6)
+  updatedAt                 DateTime                    @default(now()) @db.Timestamptz(6)
+  organizations             organizations[]
+  pricingPlanSupportsAssets pricingPlanSupportsAssets[]
+  pricingPlanProfiles       pricingPlanProfiles         @relation(fields: [pricingPlanProfileId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model quoteStatuses {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(255)
+  description String
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @db.Timestamptz(6)
+  quotes      quotes[]
+}
+
+model tokenPairs {
+  id             Int              @id @default(autoincrement())
+  baseToken      String           @db.VarChar(255)
+  quoteToken     String           @db.VarChar(255)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime         @default(now()) @db.Timestamptz(6)
+  vendorId       Int
+  vendors        vendors          @relation(fields: [vendorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tokenPairsInfo tokenPairsInfo[]
+}
+
+model tokenPairsInfo {
+  id          Int        @id @default(autoincrement())
+  tokenPairId Int
+  fxRequestID String     @unique(map: "unique_fxRequestID") @db.Uuid
+  quantity    Json       @db.Json
+  createdAt   DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime   @default(now()) @db.Timestamptz(6)
+  quotes      quotes[]
+  tokenPairs  tokenPairs @relation(fields: [tokenPairId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model transactionPolicies {
+  id                                               String                          @id @db.Uuid
+  userId                                           String                          @db.Uuid
+  transactionTypeId                                Int
+  sourceVaultId                                    String                          @db.Uuid
+  targetVaultId                                    String?                         @db.Uuid
+  targetWithdrawalAddressId                        String?                         @db.Uuid
+  toOneTimeAddresses                               Boolean?
+  greaterThanUSD                                   String                          @db.VarChar(255)
+  assetId                                          Int
+  action                                           enum_transactionPolicies_action
+  createdAt                                        DateTime                        @default(now()) @db.Timestamptz(6)
+  updatedAt                                        DateTime                        @default(now()) @db.Timestamptz(6)
+  assets                                           assets                          @relation(fields: [assetId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vaults_transactionPolicies_sourceVaultIdTovaults vaults                          @relation("transactionPolicies_sourceVaultIdTovaults", fields: [sourceVaultId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vaults_transactionPolicies_targetVaultIdTovaults vaults?                         @relation("transactionPolicies_targetVaultIdTovaults", fields: [targetVaultId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  withdrawalAddresses                              withdrawalAddresses?            @relation(fields: [targetWithdrawalAddressId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transactionTypes                                 transactionTypes                @relation(fields: [transactionTypeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                                            users                           @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model userTypes {
+  id               Int      @id @default(autoincrement())
+  name             String   @db.VarChar(255)
+  description      String
+  claims           Json     @db.Json
+  isServiceAccount Boolean  @default(false)
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @db.Timestamptz(6)
+  users            users[]
+}
+
+model vaultAssets {
+  id                       Int                        @id @default(autoincrement())
+  vaultId                  String                     @db.Uuid
+  assetId                  Int
+  balance                  String                     @db.VarChar(255)
+  createdAt                DateTime                   @default(now()) @db.Timestamptz(6)
+  updatedAt                DateTime                   @default(now()) @db.Timestamptz(6)
+  custodyVendorVaultAssets custodyVendorVaultAssets[]
+  depositAddresses         depositAddresses[]
+  assets                   assets                     @relation(fields: [assetId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vaults                   vaults                     @relation(fields: [vaultId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model vaultStatusTypes {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(255)
+  description String
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @db.Timestamptz(6)
+  vaults      vaults[]
+}
+
+model vaults {
+  id                                                            String                @id @db.Uuid
+  createdByUserId                                               String                @db.Uuid
+  vaultStatusId                                                 Int?
+  vaultName                                                     String?               @db.VarChar(255)
+  subjectId                                                     String                @db.VarChar(255)
+  createdAt                                                     DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt                                                     DateTime              @default(now()) @db.Timestamptz(6)
+  transactionPolicies_transactionPolicies_sourceVaultIdTovaults transactionPolicies[] @relation("transactionPolicies_sourceVaultIdTovaults")
+  transactionPolicies_transactionPolicies_targetVaultIdTovaults transactionPolicies[] @relation("transactionPolicies_targetVaultIdTovaults")
+  transactions_transactions_sourceVaultIdTovaults               transactions[]        @relation("transactions_sourceVaultIdTovaults")
+  transactions_transactions_targetVaultIdTovaults               transactions[]        @relation("transactions_targetVaultIdTovaults")
+  vaultAssets                                                   vaultAssets[]
+  users                                                         users                 @relation(fields: [createdByUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vaultStatusTypes                                              vaultStatusTypes?     @relation(fields: [vaultStatusId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model vendorSupportsAssets {
+  id                        Int                         @id @default(autoincrement())
+  assetId                   Int
+  vendorId                  Int
+  enabled                   Boolean?
+  createdAt                 DateTime                    @default(now()) @db.Timestamptz(6)
+  updatedAt                 DateTime                    @default(now()) @db.Timestamptz(6)
+  theirId                   String?                     @db.VarChar(255)
+  pricingPlanSupportsAssets pricingPlanSupportsAssets[]
+  assets                    assets                      @relation(fields: [assetId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  vendors                   vendors                     @relation(fields: [vendorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model webhookRequests {
+  id                     String                 @id @db.Uuid
+  webhookId              String                 @db.Uuid
+  institutionalProductId String?                @db.Uuid
+  httpStatusCode         Int
+  requestPayload         Json                   @db.Json
+  responsePayload        Json?                  @db.Json
+  custodyEngineEventId   String?                @db.Uuid
+  createdAt              DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime               @default(now()) @db.Timestamptz(6)
+  custodyEngineEvents    custodyEngineEvents?   @relation(fields: [custodyEngineEventId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  institutionalProducts  institutionalProducts? @relation(fields: [institutionalProductId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  webhooks               webhooks               @relation(fields: [webhookId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model webhookStatusTypes {
+  id          Int        @id @default(autoincrement())
+  name        String     @db.VarChar(255)
+  description String
+  createdAt   DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime   @default(now()) @db.Timestamptz(6)
+  webhooks    webhooks[]
+}
+
+model webhooks {
+  id                  String             @id @db.Uuid
+  organizationId      Int
+  webhookStatusTypeId Int
+  url                 String             @db.VarChar(255)
+  createdAt           DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime           @default(now()) @db.Timestamptz(6)
+  webhookRequests     webhookRequests[]
+  organizations       organizations      @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  webhookStatusTypes  webhookStatusTypes @relation(fields: [webhookStatusTypeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model withdrawalAddresses {
+  id                  String                @id @db.Uuid
+  organizationId      Int
+  assetId             Int
+  nickname            String?               @db.VarChar(255)
+  address             String                @db.VarChar(255)
+  subjectId           String                @db.VarChar(255)
+  createdAt           DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime              @default(now()) @db.Timestamptz(6)
+  transactionPolicies transactionPolicies[]
+  transactions        transactions[]
+  assets              assets                @relation(fields: [assetId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizations       organizations         @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+enum enum_quotes_side {
+  BUY
+  SELL
+  INFO
+  SWAP
+}
+
+enum enum_assets_type {
+  crypto
+  fiat
+}
+
+enum enum_orders_orderType {
+  GTC
+  GTX
+  FOK
+  LIMIT
+  MARKET
+}
+
+enum enum_orders_userAcceptedSide {
+  BUY
+  SELL
+  INFO
+  SWAP
+}
+
+enum enum_transactionPolicies_action {
+  allow
+  deny
+}
